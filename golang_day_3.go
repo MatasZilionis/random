@@ -10,19 +10,21 @@ import (
 	"unicode"
 )
 
-var totalCount int = 0
+var (
+	totalCount int = 0
 
-var possibleNumber string
-var symbolFlag bool = false
+	symbolFlag bool = false
 
-var previousSymbol string = ""
-var curentValue string = ""
+	possibleNumber string
+	previousSymbol string = ""
+	curentValue    string = ""
+
+	topLayerArray    []string
+	middleLayerArray []string
+	bottomLayerArray []string
+)
 
 func main() {
-
-	var topLayerArray []string
-	var middleLayerArray []string
-	var bottomLayerArray []string
 
 	file, err := os.Open("./engine_values.txt")
 	checkNilErr(err)
@@ -40,75 +42,7 @@ func main() {
 		// Read the file line by line.
 		line_3, _, err := r.ReadLine()
 		if len(line_3) > 0 {
-			for i := 0; i < len(middleLayerArray); i++ {
-				curentValue = locateNumbersAndSymbols(middleLayerArray[i])
-				// Check if a symbol is before a row of numbers.
-				// Check adjacent rows above an below the number
-				if curentValue == "number" {
-					// Check for symbols diagnoly, above and below.
-					if topLayerArray != nil && (i+1 < 140) && (i-1 > 0) {
-						if locateNumbersAndSymbols(topLayerArray[i+1]) == "symbol" {
-							symbolFlag = true
-						} else if locateNumbersAndSymbols(topLayerArray[i-1]) == "symbol" {
-							symbolFlag = true
-						} else if locateNumbersAndSymbols(topLayerArray[i]) == "symbol" {
-							symbolFlag = true
-						}
-					} else if topLayerArray != nil && locateNumbersAndSymbols(topLayerArray[i]) == "symbol" {
-						symbolFlag = true
-					}
-
-					if bottomLayerArray != nil && (i+1 < 140) && (i-1 > 0) {
-						if locateNumbersAndSymbols(bottomLayerArray[i+1]) == "symbol" {
-							symbolFlag = true
-						} else if locateNumbersAndSymbols(bottomLayerArray[i-1]) == "symbol" {
-							symbolFlag = true
-						} else if locateNumbersAndSymbols(bottomLayerArray[i]) == "symbol" {
-							symbolFlag = true
-						}
-					} else if bottomLayerArray != nil && locateNumbersAndSymbols(bottomLayerArray[i]) == "symbol" {
-						symbolFlag = true
-					}
-
-					if middleLayerArray != nil && (i+1 < 140) && (i-1 > 0) && locateNumbersAndSymbols(middleLayerArray[i+1]) == "symbol" {
-						symbolFlag = true
-					}
-
-					if middleLayerArray != nil && (i+1 < 140) && (i-1 > 0) && locateNumbersAndSymbols(middleLayerArray[i-1]) == "symbol" {
-						symbolFlag = true
-					}
-
-					possibleNumber = possibleNumber + middleLayerArray[i]
-				} else if (curentValue == "dot" || curentValue == "symbol") && previousSymbol == "number" && symbolFlag {
-					// Convert the string into a int.
-					finalInt, err := strconv.Atoi(possibleNumber)
-					// Check for errors.
-					checkNilErr(err)
-					// Add the number into the total count.
-					totalCount = totalCount + finalInt
-					// Clean up the part number string.
-					possibleNumber = ""
-					symbolFlag = false
-				}
-				// check something
-				if curentValue == "dot" && previousSymbol == "number" && len(possibleNumber) > 0 && !symbolFlag {
-					possibleNumber = ""
-				}
-				previousSymbol = curentValue
-			}
-			if symbolFlag {
-				// Convert the string into a int.
-				finalInt, err := strconv.Atoi(possibleNumber)
-				// Check for errors.
-				checkNilErr(err)
-				// Add the number into the total count.
-				totalCount = totalCount + finalInt
-				// Clean up the part number string.
-				possibleNumber = ""
-				symbolFlag = false
-			}
-			previousSymbol = ""
-			possibleNumber = ""
+			processArray(middleLayerArray)
 			topLayerArray = middleLayerArray
 			middleLayerArray = bottomLayerArray
 			bottomLayerArray = splitStringIntoArray(string(line_3))
@@ -118,6 +52,58 @@ func main() {
 		}
 	}
 	fmt.Println(totalCount)
+}
+
+// Perform a scan on a specific line if there are any numbers with adjacent symbols.
+func processArray(layerArray []string) {
+	for i := 0; i < len(layerArray); i++ {
+		curentValue = locateNumbersAndSymbols(layerArray[i])
+		// Check if a symbol is before a row of numbers.
+		// Check adjacent rows above an below the number
+		if curentValue == "number" {
+			// Check for symbols diagnoly, above, below, left and right.
+			checkSymbol(topLayerArray, i+1)
+			checkSymbol(topLayerArray, i)
+			checkSymbol(topLayerArray, i-1)
+			checkSymbol(middleLayerArray, i+1)
+			checkSymbol(middleLayerArray, i-1)
+			checkSymbol(bottomLayerArray, i+1)
+			checkSymbol(bottomLayerArray, i)
+			checkSymbol(bottomLayerArray, i-1)
+			possibleNumber = possibleNumber + layerArray[i]
+		} else if (curentValue == "dot" || curentValue == "symbol") && previousSymbol == "number" && symbolFlag {
+			addToTolal()
+		} else if curentValue == "dot" && previousSymbol == "number" && len(possibleNumber) > 0 && !symbolFlag {
+			possibleNumber = ""
+		}
+		previousSymbol = curentValue
+	}
+	if symbolFlag {
+		addToTolal()
+	}
+	// Data cleanup
+	previousSymbol = ""
+	possibleNumber = ""
+}
+
+// Add the possible number to the total count.
+func addToTolal() {
+	// Convert the string into a int.
+	finalInt, err := strconv.Atoi(possibleNumber)
+	// Check for errors.
+	checkNilErr(err)
+	// Add the number into the total count.
+	totalCount = totalCount + finalInt
+	// Clean up the part number string.
+	possibleNumber = ""
+	symbolFlag = false
+}
+
+// Check if there is a symbol on a specified layer and index.
+func checkSymbol(layerArray []string, i int) {
+	if layerArray != nil && i > 0 && i < len(layerArray) && locateNumbersAndSymbols(layerArray[i]) == "symbol" {
+		symbolFlag = true
+	}
 }
 
 // Take a string and convert it into a string array.
